@@ -1,0 +1,164 @@
+import SwiftUI
+
+struct PlantagatchiData {
+    var temperature: Int
+    var soilMoisture: Int
+    var lightLevel: Int
+    var humidity: Int
+
+    var mood: String {
+        if soilMoisture < 30 {
+            return "😢"
+        } else if lightLevel < 40 {
+            return "😐"
+        } else {
+            return "😊"
+        }
+    }
+
+    var message: String {
+        if soilMoisture < 30 {
+            return "I'm thirsty!"
+        } else if lightLevel < 40 {
+            return "I need more light!"
+        } else {
+            return "I'm feeling great!"
+        }
+    }
+}
+
+struct ContentView: View {
+    @State private var data = PlantagatchiData(
+        temperature: 22,
+        soilMoisture: 50,
+        lightLevel: 80,
+        humidity: 60
+    )
+    @State private var showAlert = false
+    @State private var alertMessage = ""
+    @State private var hasShownAlert = false
+    @State private var selectedLighting = "Off"
+
+    let lightingOptions = ["Off", "Lights", "Firefly Mode"]
+
+    let timer = Timer.publish(every: 3, on: .main, in: .common).autoconnect()
+
+    var body: some View {
+        VStack(spacing: 20) {
+            Text("🌱 Plantagatchi")
+                .font(.largeTitle)
+                .bold()
+
+            // Emoji face based on mood
+            Text(data.mood)
+                .font(.system(size: 100))
+
+            Text(data.message)
+                .font(.title3)
+                .foregroundColor(.gray)
+
+            // Progress bars for each stat
+            VStack(spacing: 15) {
+                StatView(label: "🌡️ Temp", value: Double(data.temperature), range: 0...40, unit: "°C")
+                StatView(label: "💧 Moisture", value: Double(data.soilMoisture), range: 0...100, unit: "%")
+                StatView(label: "🌞 Light", value: Double(data.lightLevel), range: 0...100, unit: "%")
+                StatView(label: "💦 Humidity", value: Double(data.humidity), range: 0...100, unit: "%")
+            }
+            .padding(.horizontal)
+
+            // Action buttons
+            HStack(spacing: 20) {
+                Button("Water") {
+                    data.soilMoisture = min(data.soilMoisture + 15, 100)
+                    hasShownAlert = false
+                }
+                .buttonStyle(.borderedProminent)
+
+                Button("Mist") {
+                    data.humidity = min(data.humidity + 10, 100)
+                    hasShownAlert = false
+                }
+                .buttonStyle(.borderedProminent)
+            }
+
+            // Lighting control
+            Picker("Lighting", selection: $selectedLighting) {
+                ForEach(lightingOptions, id: \.self) { option in
+                    Text(option)
+                }
+            }
+            .pickerStyle(.segmented)
+            .padding()
+
+            // Simulate light level change
+            Button("Apply Lighting Mode") {
+                switch selectedLighting {
+                case "Lights":
+                    data.lightLevel = min(data.lightLevel + 20, 100)
+                case "Firefly Mode":
+                    data.lightLevel = min(data.lightLevel + 10, 100)
+                default:
+                    break
+                }
+                hasShownAlert = false
+            }
+            .buttonStyle(.bordered)
+        }
+        .padding()
+        .onReceive(timer) { _ in
+            // Simulate stat decrease
+            data.soilMoisture = max(data.soilMoisture - 5, 0)
+            data.lightLevel = max(data.lightLevel - 2, 0)
+            data.humidity = max(data.humidity - 1, 0)
+            checkAlerts()
+        }
+        // Alert for low stats
+        .alert(isPresented: $showAlert) {
+            Alert(
+                title: Text("Warning"),
+                message: Text(alertMessage),
+                dismissButton: .default(Text("OK"))
+            )
+        }
+    }
+
+    // Check for dangerously low stats
+    private func checkAlerts() {
+        guard !hasShownAlert else { return }
+
+        if data.soilMoisture < 20 {
+            alertMessage = "Soil moisture is critically low!"
+            showAlert = true
+            hasShownAlert = true
+        } else if data.lightLevel < 20 {
+            alertMessage = "Light level is critically low!"
+            showAlert = true
+            hasShownAlert = true
+        } else if data.humidity < 15 {
+            alertMessage = "Humidity is critically low!"
+            showAlert = true
+            hasShownAlert = true
+        }
+    }
+}
+
+// Reusable view for a labeled progress bar
+struct StatView: View {
+    let label: String
+    let value: Double
+    let range: ClosedRange<Double>
+    let unit: String
+
+    var body: some View {
+        VStack(alignment: .leading) {
+            Text("\(label): \(Int(value))\(unit)")
+                .font(.body)
+            ProgressView(value: value, total: range.upperBound)
+                .progressViewStyle(.linear)
+        }
+    }
+}
+
+#Preview {
+    ContentView()
+}
